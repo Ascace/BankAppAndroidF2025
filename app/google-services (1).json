@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "193910658805",
+    "project_id": "bankly-app",
+    "storage_bucket": "bankly-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:193910658805:android:5623f74407c37e26c2d7bc",
+        "android_client_info": {
+          "package_name": "com.example.bankly"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA0I-p6n2qMWw6hgPpr1JQoCiDu1aL5ewA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
