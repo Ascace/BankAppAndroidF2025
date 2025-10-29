@@ -55,7 +55,7 @@ public class DatabaseService {
                 .addOnFailureListener(e -> callback.onFailure(e.getMessage()));
     }
 
-    // Get all transactions for a user (as sender or recipient)
+    // Get all transactions for a user
     public void getUserTransactions(String userEmail, TransactionListCallback callback) {
         database.child("transactions").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -79,7 +79,7 @@ public class DatabaseService {
         });
     }
 
-    // Update transaction status
+    // Update transaction statu
     public void updateTransactionStatus(String transactionId, String status, DatabaseCallback callback) {
         database.child("transactions").child(transactionId).child("status").setValue(status)
                 .addOnSuccessListener(aVoid -> callback.onSuccess("Status updated"))
