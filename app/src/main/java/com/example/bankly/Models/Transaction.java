@@ -1,7 +1,9 @@
 package com.example.bankly.Models;
 
+import java.io.Serializable;
+import java.util.Date;
 
-public class Transaction {
+public class Transaction implements Serializable {
     private String transactionId;
     private String senderId;
     private String senderEmail;
@@ -18,23 +20,23 @@ public class Transaction {
     public Transaction() {
     }
 
-    // Constructor
+
     public Transaction(String senderId, String senderEmail, String recipientEmail,
-                       double amount, String message, String type, long scheduledDate) {
+                       double amount, String message, String status, long scheduledDate) {
         this.transactionId = java.util.UUID.randomUUID().toString();
         this.senderId = senderId;
         this.senderEmail = senderEmail;
         this.recipientEmail = recipientEmail;
         this.amount = amount;
         this.message = message;
-        this.type = type;
-        this.status = "Scheduled";
+        this.type = "Transfer";
+        this.status = status;
         this.scheduledDate = scheduledDate;
         this.processingDate = 0;
         this.confirmedByRecipient = false;
     }
 
-    // Getters and Setters
+
     public String getTransactionId() {
         return transactionId;
     }

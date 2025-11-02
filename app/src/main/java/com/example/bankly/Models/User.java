@@ -7,7 +7,7 @@ public class User {
     private long createdAt;
     private long lastUpdated;
 
-    // Empty constructor for firebase
+
     public User() {
     }
 

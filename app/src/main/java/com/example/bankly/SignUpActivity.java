@@ -48,7 +48,7 @@ public class SignUpActivity extends AppCompatActivity {
         // Create account button
         btnCreateAccount.setOnClickListener(v -> createAccount());
 
-        // Login text click
+
         tvLogin.setOnClickListener(v -> finish());
     }
 
@@ -92,8 +92,8 @@ public class SignUpActivity extends AppCompatActivity {
         authService.signUpUser(email, password, this, new AuthService.AuthCallback() {
             @Override
             public void onSuccess(FirebaseUser firebaseUser) {
-                // Create user in database with initial balance of $1000
-                User user = new User(firebaseUser.getUid(), email, 1000.00);
+                // Create user in database with initial balance of 0$
+                User user = new User(firebaseUser.getUid(), email, 0.00);
 
                 databaseService.saveUser(user, new DatabaseService.DatabaseCallback() {
                     @Override
@@ -115,7 +115,7 @@ public class SignUpActivity extends AppCompatActivity {
 
             @Override
             public void onFailure(String error) {
-                // Error already shown in AuthService via Toast
+
             }
         });
     }

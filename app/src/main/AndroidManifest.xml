@@ -12,7 +12,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.Bankly">
 
-        <!-- Launcher activity is now LoginActivity -->
         <activity
             android:name=".LoginActivity"
             android:exported="true">
@@ -24,6 +23,12 @@
 
         <activity android:name=".SignUpActivity" android:exported="false" />
         <activity android:name=".MainActivity" android:exported="false" />
+        <activity android:name=".HomeActivity" android:exported="false" />
+        <activity android:name=".CreateTransactionActivity" android:exported="false" />
+        <activity
+            android:name=".TransactionDetailActivity"
+            android:exported="false" />
+
 
     </application>
 

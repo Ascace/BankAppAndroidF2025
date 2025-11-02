@@ -28,7 +28,7 @@ public class DatabaseService {
                 .addOnFailureListener(e -> callback.onFailure(e.getMessage()));
     }
 
-    // Get user by UID
+    // Get user by ID
     public void getUser(String uid, UserCallback callback) {
         database.child("users").child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
@@ -119,4 +119,85 @@ public class DatabaseService {
         void onTransactionsLoaded(List<Transaction> transactions);
         void onError(String error);
     }
+
+
+
+    // Find user by email
+    public void findUserByEmail(String email, UserCallback callback) {
+        database.child("users").orderByChild("email").equalTo(email)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if (snapshot.exists()) {
+                            for (DataSnapshot child : snapshot.getChildren()) {
+                                User user = child.getValue(User.class);
+                                callback.onUserLoaded(user);
+                                return;
+                            }
+                        }
+                        callback.onUserNotFound();
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        callback.onError(error.getMessage());
+                    }
+                });
+    }
+
+
+    public void listenUserTransactions(String userEmail, TransactionListCallback callback) {
+        database.child("transactions").addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                List<Transaction> transactions = new ArrayList<>();
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    Transaction transaction = child.getValue(Transaction.class);
+                    if (transaction != null &&
+                            (transaction.getSenderEmail().equals(userEmail) ||
+                                    transaction.getRecipientEmail().equals(userEmail))) {
+                        transactions.add(transaction);
+                    }
+                }
+                callback.onTransactionsLoaded(transactions);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                callback.onError(error.getMessage());
+            }
+        });
+    }
+
+    // Complete transaction and update s
+    public void completeTransactionAndUpdateBalances(Transaction transaction, User receiver, User sender, DatabaseCallback callback) {
+        double amount = transaction.getAmount();
+
+        // Update sender balance (subtract)
+        sender.setBalance(sender.getBalance() - amount);
+
+        // Update receiver balance (add)
+        receiver.setBalance(receiver.getBalance() + amount);
+
+        // Update transaction status
+        transaction.setStatus("Completed");
+        transaction.setConfirmedByRecipient(true);
+        transaction.setProcessingDate(System.currentTimeMillis());
+
+        // Save sender
+        database.child("users").child(sender.getUid()).setValue(sender)
+                .addOnSuccessListener(aVoid -> {
+                    // Save receiver
+                    database.child("users").child(receiver.getUid()).setValue(receiver)
+                            .addOnSuccessListener(aVoid2 -> {
+                                // Save transaction
+                                database.child("transactions").child(transaction.getTransactionId()).setValue(transaction)
+                                        .addOnSuccessListener(aVoid3 -> callback.onSuccess("Transaction completed successfully"))
+                                        .addOnFailureListener(e -> callback.onFailure(e.getMessage()));
+                            })
+                            .addOnFailureListener(e -> callback.onFailure(e.getMessage()));
+                })
+                .addOnFailureListener(e -> callback.onFailure(e.getMessage()));
+    }
 }
+
