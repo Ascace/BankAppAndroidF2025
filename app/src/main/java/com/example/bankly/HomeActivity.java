@@ -2,7 +2,6 @@ package com.example.bankly;
 
 import android.content.Intent;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -29,6 +28,7 @@ public class HomeActivity extends AppCompatActivity {
     private TextView tvUserEmail, tvBalance;
     private ImageView ivLogout;
     private Button btnScheduled, btnCompleted;
+    private Button btnWithdraw, btnDeposit;
     private RecyclerView recyclerView;
     private LinearLayout emptyState;
     private FloatingActionButton fabAddTransaction;
@@ -44,34 +44,36 @@ public class HomeActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_home);
 
-
+        // Services
         authService = new AuthService();
         databaseService = new DatabaseService();
 
-
+        // Views
         tvUserEmail = findViewById(R.id.tv_user_email);
         tvBalance = findViewById(R.id.tv_balance);
         ivLogout = findViewById(R.id.iv_logout);
         btnScheduled = findViewById(R.id.btn_scheduled);
         btnCompleted = findViewById(R.id.btn_completed);
+        btnWithdraw = findViewById(R.id.btn_withdraw);
+        btnDeposit = findViewById(R.id.btn_deposit);
         recyclerView = findViewById(R.id.recycler_view);
         emptyState = findViewById(R.id.empty_state);
         fabAddTransaction = findViewById(R.id.fab_add_transaction);
 
-
+        // Display user email and balance
         String email = authService.getCurrentUserEmail();
         if (email != null) {
             tvUserEmail.setText(email);
             loadUserBalance();
         }
 
-
+        // RecyclerView setup
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         allTransactions = new ArrayList<>();
         adapter = new TransactionAdapter(this, new ArrayList<>());
-        recyclerView.setAdapter(adapter); // ✅ CONNECT THE ADAPTER TO RECYCLER VIEW
+        recyclerView.setAdapter(adapter);
 
-
+        // Filters
         btnScheduled.setOnClickListener(v -> {
             currentFilter = "scheduled";
             updateButtonStates();
@@ -84,7 +86,18 @@ public class HomeActivity extends AppCompatActivity {
             filterTransactions();
         });
 
-        // Logout button
+        // Withdraw / Deposit buttons
+        btnWithdraw.setOnClickListener(v -> {
+            // Open WithdrawActivity (implement later)
+            startActivity(new Intent(HomeActivity.this, WithdrawActivity.class));
+        });
+
+        btnDeposit.setOnClickListener(v -> {
+            // Open DepositActivity (implement later)
+            startActivity(new Intent(HomeActivity.this, DepositActivity.class));
+        });
+
+        // Logout
         ivLogout.setOnClickListener(v -> {
             authService.signOut();
             Intent intent = new Intent(HomeActivity.this, LoginActivity.class);
@@ -92,13 +105,12 @@ public class HomeActivity extends AppCompatActivity {
             finish();
         });
 
-
+        // Add transaction
         fabAddTransaction.setOnClickListener(v -> {
-            Intent intent = new Intent(HomeActivity.this, CreateTransactionActivity.class);
-            startActivity(intent);
+            startActivity(new Intent(HomeActivity.this, CreateTransactionActivity.class));
         });
 
-
+        // Load transactions
         loadTransactions();
     }
 
@@ -147,8 +159,6 @@ public class HomeActivity extends AppCompatActivity {
                 public void onTransactionsLoaded(List<Transaction> transactions) {
                     allTransactions = transactions;
                     filterTransactions();
-
-
                     Toast.makeText(HomeActivity.this, "Transactions loaded: " + transactions.size(), Toast.LENGTH_SHORT).show();
                 }
 
@@ -178,11 +188,11 @@ public class HomeActivity extends AppCompatActivity {
         adapter.updateTransactions(filtered);
 
         if (filtered.isEmpty()) {
-            emptyState.setVisibility(View.VISIBLE);
-            recyclerView.setVisibility(View.GONE);
+            emptyState.setVisibility(LinearLayout.VISIBLE);
+            recyclerView.setVisibility(RecyclerView.GONE);
         } else {
-            emptyState.setVisibility(View.GONE);
-            recyclerView.setVisibility(View.VISIBLE);
+            emptyState.setVisibility(LinearLayout.GONE);
+            recyclerView.setVisibility(RecyclerView.VISIBLE);
         }
     }
 
