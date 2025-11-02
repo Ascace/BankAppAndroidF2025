@@ -11,7 +11,6 @@
         android:layout_height="wrap_content"
         android:padding="24dp">
 
-
         <ImageView
             android:id="@+id/iv_back"
             android:layout_width="40dp"
@@ -22,7 +21,6 @@
             app:tint="#2196F3"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
-
 
         <TextView
             android:id="@+id/tv_title"
@@ -35,7 +33,6 @@
             android:textStyle="bold"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/iv_back" />
-
 
         <androidx.cardview.widget.CardView
             android:id="@+id/card_transaction"
@@ -55,7 +52,6 @@
                 android:padding="24dp"
                 android:gravity="center_horizontal">
 
-
                 <EditText
                     android:id="@+id/etEmail"
                     android:layout_width="match_parent"
@@ -68,7 +64,6 @@
                     android:drawableStart="@android:drawable/ic_dialog_email"
                     android:drawablePadding="10dp"
                     android:textSize="16sp" />
-
 
                 <EditText
                     android:id="@+id/et_amount"
@@ -83,12 +78,11 @@
                     android:drawablePadding="10dp"
                     android:textSize="16sp" />
 
-
                 <EditText
                     android:id="@+id/et_message"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
+                    android:layout_marginBottom="16dp"
                     android:hint="Message (optional)"
                     android:inputType="textCapSentences|textMultiLine"
                     android:minLines="2"
@@ -98,6 +92,12 @@
                     android:drawablePadding="10dp"
                     android:textSize="16sp" />
 
+                <CalendarView
+                    android:id="@+id/calendarView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="24dp"
+                    android:minDate="@{System.currentTimeMillis()}" />
 
                 <Button
                     android:id="@+id/btn_send_money"
@@ -113,4 +113,5 @@
         </androidx.cardview.widget.CardView>
     </androidx.constraintlayout.widget.ConstraintLayout>
 </ScrollView>
+
 

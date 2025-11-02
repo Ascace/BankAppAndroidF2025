@@ -43,7 +43,8 @@ public class TransactionAdapter extends RecyclerView.Adapter<TransactionAdapter.
 
 
         SimpleDateFormat sdf = new SimpleDateFormat("MMM dd, yyyy", Locale.getDefault());
-        String dateText = sdf.format(new Date(transaction.getScheduledDate()));
+        String dateText = sdf.format(new Date(transaction.getTimestamp()));
+
 
         holder.tvDate.setText(dateText);
 
@@ -73,12 +74,12 @@ public class TransactionAdapter extends RecyclerView.Adapter<TransactionAdapter.
         return transactionList.size();
     }
 
-    public void updateTransactions(List<Transaction> newTransactions) {
+    public void updateTransactions(List<Transaction> newTransactions)
+    {
         this.transactionList.clear();
         this.transactionList.addAll(newTransactions);
         notifyDataSetChanged();
     }
-
 
     public static class TransactionViewHolder extends RecyclerView.ViewHolder {
         ImageView ivStatusIcon;

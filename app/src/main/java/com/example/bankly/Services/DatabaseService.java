@@ -182,15 +182,12 @@ public class DatabaseService {
         // Update transaction status
         transaction.setStatus("Completed");
         transaction.setConfirmedByRecipient(true);
-        transaction.setProcessingDate(System.currentTimeMillis());
+        // ❌ Removed transaction.setProcessingDate() because it doesn't exist anymore
 
-        // Save sender
         database.child("users").child(sender.getUid()).setValue(sender)
                 .addOnSuccessListener(aVoid -> {
-                    // Save receiver
                     database.child("users").child(receiver.getUid()).setValue(receiver)
                             .addOnSuccessListener(aVoid2 -> {
-                                // Save transaction
                                 database.child("transactions").child(transaction.getTransactionId()).setValue(transaction)
                                         .addOnSuccessListener(aVoid3 -> callback.onSuccess("Transaction completed successfully"))
                                         .addOnFailureListener(e -> callback.onFailure(e.getMessage()));
@@ -199,5 +196,5 @@ public class DatabaseService {
                 })
                 .addOnFailureListener(e -> callback.onFailure(e.getMessage()));
     }
-}
 
+}

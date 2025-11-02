@@ -24,10 +24,10 @@ public class TransactionDetailActivity extends AppCompatActivity {
     private DatabaseService dbService;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    protected void onCreate(Bundle savedInstanceState)
+    {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_transaction_detail);
-
 
         tvSender = findViewById(R.id.tvSender);
         tvRecipient = findViewById(R.id.tvRecipient);
@@ -40,16 +40,15 @@ public class TransactionDetailActivity extends AppCompatActivity {
         authService = new AuthService();
         dbService = new DatabaseService();
 
-
         transaction = (Transaction) getIntent().getSerializableExtra("transaction");
 
-        if (transaction == null) {
+        if (transaction == null)
+        {
             Toast.makeText(this, "Error: No transaction data found", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
 
-        // Set UI safely
         tvSender.setText("Sender: " + safeString(transaction.getSenderEmail()));
         tvRecipient.setText("Recipient: " + safeString(transaction.getRecipientEmail()));
         tvAmount.setText("Amount: $" + transaction.getAmount());
@@ -58,92 +57,108 @@ public class TransactionDetailActivity extends AppCompatActivity {
 
         ivBack.setOnClickListener(v -> finish());
 
-        setupConfirmButton();
-    }
-
-    private void setupConfirmButton() {
-        // Disable if already confirmed or completed
-        if (transaction.isConfirmedByRecipient() || "Completed".equalsIgnoreCase(transaction.getStatus())) {
-            btnConfirm.setText("Already Confirmed");
-            btnConfirm.setEnabled(false);
-            return;
-        }
+        handleTransactionState();
 
         btnConfirm.setOnClickListener(v -> confirmTransaction());
     }
 
-    private void confirmTransaction() {
+    private void handleTransactionState()
+    {
+        long now = System.currentTimeMillis();
+
+        if (transaction.getTimestamp() > now)
+        {
+            tvStatus.setText("Status: Scheduled (Not yet processed)");
+            btnConfirm.setText("Pending");
+            btnConfirm.setEnabled(false);
+            Toast.makeText(this, "Transaction not yet processed.", Toast.LENGTH_SHORT).show();
+        }
+
+        else if ("Completed".equalsIgnoreCase(transaction.getStatus()) && !transaction.isConfirmedByRecipient())
+        {
+            btnConfirm.setEnabled(true);
+            btnConfirm.setText("Confirm Receipt");
+        }
+
+        else if (transaction.isConfirmedByRecipient())
+        {
+            tvStatus.setText("Status: Confirmed");
+            btnConfirm.setText("Already Confirmed");
+            btnConfirm.setEnabled(false);
+        }
+    }
+
+    private void confirmTransaction()
+    {
         String currentUserEmail = authService.getCurrentUserEmail();
-        if (currentUserEmail == null) {
+        if (currentUserEmail == null)
+        {
             Toast.makeText(this, "Error: User not logged in", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Only the recipient can confirm
-        if (!currentUserEmail.equalsIgnoreCase(transaction.getRecipientEmail())) {
-            Toast.makeText(this, "Only the recipient can confirm this transaction", Toast.LENGTH_SHORT).show();
+        if (!currentUserEmail.equalsIgnoreCase(transaction.getRecipientEmail()))
+        {
+            Toast.makeText(this, "Only the receiver can confirm this transaction", Toast.LENGTH_SHORT).show();
             return;
         }
 
         dbService.getUser(authService.getCurrentUserId(), new DatabaseService.UserCallback() {
             @Override
-            public void onUserLoaded(User receiver) {
-                if (receiver == null) {
-                    Toast.makeText(TransactionDetailActivity.this, "Receiver not found", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
+            public void onUserLoaded(User receiver)
+            {
                 dbService.findUserByEmail(transaction.getSenderEmail(), new DatabaseService.UserCallback() {
                     @Override
-                    public void onUserLoaded(User sender) {
-                        if (sender == null) {
-                            Toast.makeText(TransactionDetailActivity.this, "Sender not found", Toast.LENGTH_SHORT).show();
-                            return;
-                        }
+                    public void onUserLoaded(User sender)
+                    {
+                        dbService.completeTransactionAndUpdateBalances(transaction, receiver, sender,
+                                new DatabaseService.DatabaseCallback() {
+                                    @Override
+                                    public void onSuccess(String message)
+                                    {
+                                        Toast.makeText(TransactionDetailActivity.this, "Transaction confirmed!", Toast.LENGTH_SHORT).show();
+                                        tvStatus.setText("Status: Confirmed");
+                                        btnConfirm.setEnabled(false);
+                                        btnConfirm.setText("Confirmed");
+                                    }
 
-                        dbService.completeTransactionAndUpdateBalances(transaction, receiver, sender, new DatabaseService.DatabaseCallback() {
-                            @Override
-                            public void onSuccess(String message) {
-                                Toast.makeText(TransactionDetailActivity.this, "Transaction confirmed!", Toast.LENGTH_SHORT).show();
-                                transaction.setStatus("Completed");
-                                transaction.setConfirmedByRecipient(true);
-                                tvStatus.setText("Status: Completed");
-                                btnConfirm.setText("Confirmed");
-                                btnConfirm.setEnabled(false);
-                            }
-
-                            @Override
-                            public void onFailure(String error) {
-                                Toast.makeText(TransactionDetailActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
-                            }
-                        });
+                                    @Override
+                                    public void onFailure(String error) {
+                                        Toast.makeText(TransactionDetailActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                                    }
+                                });
                     }
 
                     @Override
-                    public void onUserNotFound() {
+                    public void onUserNotFound()
+                    {
                         Toast.makeText(TransactionDetailActivity.this, "Sender not found", Toast.LENGTH_SHORT).show();
                     }
 
                     @Override
-                    public void onError(String error) {
+                    public void onError(String error)
+                    {
                         Toast.makeText(TransactionDetailActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
                     }
                 });
             }
 
             @Override
-            public void onUserNotFound() {
+            public void onUserNotFound()
+            {
                 Toast.makeText(TransactionDetailActivity.this, "Receiver not found", Toast.LENGTH_SHORT).show();
             }
 
             @Override
-            public void onError(String error) {
+            public void onError(String error)
+            {
                 Toast.makeText(TransactionDetailActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
             }
         });
     }
 
-    private String safeString(String input) {
+    private String safeString(String input)
+    {
         return input != null ? input : "N/A";
     }
 }
