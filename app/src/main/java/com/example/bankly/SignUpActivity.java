@@ -99,7 +99,7 @@ public class SignUpActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(String message) {
                         Toast.makeText(SignUpActivity.this,
-                                "Welcome! You start with $1000", Toast.LENGTH_LONG).show();
+                                "Welcome to Bankly!, Enjoy the experience ", Toast.LENGTH_LONG).show();
                         goToHome();
                     }
 
