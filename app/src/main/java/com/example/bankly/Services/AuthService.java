@@ -14,7 +14,6 @@ public class AuthService {
         mAuth = FirebaseAuth.getInstance();
     }
 
-    // Sign up new user
     public void signUpUser(String email, String password, Context context, AuthCallback callback) {
         if (password.length() < 6) {
             Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show();

@@ -2,104 +2,123 @@ package com.example.bankly;
 
 import android.os.Bundle;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import com.example.bankly.R;
-
 
 import com.example.bankly.Models.Transaction;
-import com.example.bankly.Services.AuthService;
-import com.example.bankly.Services.DatabaseService;
-
+import com.example.bankly.responses.TransactionHistoryResponse;
+import com.example.bankly.responses.TransactionResponse;
 import java.util.ArrayList;
 import java.util.List;
 
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
+
 public class TransactionListActivity extends AppCompatActivity {
 
-    private RecyclerView recyclerSchedule, recyclerCompleted;
-    private TransactionAdapter scheduledAdapter, completedAdapter;
-    private List<Transaction> scheduledList, completedList;
     private ImageView ivBack;
+    private TextView tvTitle, tvSchedule, tvCompletedLabel;
+    private RecyclerView recyclerSchedule, recyclerCompleted;
 
-    private AuthService authService;
-    private DatabaseService dbService;
+    private TransactionAdapter scheduleAdapter;
+    private TransactionAdapter completedAdapter;
+
+    private List<Transaction> allTransactions = new ArrayList<>();
 
     @Override
-    protected void onCreate(Bundle savedInstanceState)
-    {
+    protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_transaction_list);
 
+        ivBack = findViewById(R.id.ivBack);
+        tvTitle = findViewById(R.id.tvTitle);
+        tvSchedule = findViewById(R.id.tvSchedule);
+        tvCompletedLabel = findViewById(R.id.tvCompletedLabel);
         recyclerSchedule = findViewById(R.id.recyclerSchedule);
         recyclerCompleted = findViewById(R.id.recyclerCompleted);
-        ivBack = findViewById(R.id.ivBack);
 
         recyclerSchedule.setLayoutManager(new LinearLayoutManager(this));
         recyclerCompleted.setLayoutManager(new LinearLayoutManager(this));
 
-        scheduledList = new ArrayList<>();
-        completedList = new ArrayList<>();
+        scheduleAdapter = new TransactionAdapter(this, new ArrayList<>());
+        completedAdapter = new TransactionAdapter(this, new ArrayList<>());
 
-        scheduledAdapter = new TransactionAdapter(this, scheduledList);
-        completedAdapter = new TransactionAdapter(this, completedList);
-
-        recyclerSchedule.setAdapter(scheduledAdapter);
+        recyclerSchedule.setAdapter(scheduleAdapter);
         recyclerCompleted.setAdapter(completedAdapter);
 
-        authService = new AuthService();
-        dbService = new DatabaseService();
-
         ivBack.setOnClickListener(v -> finish());
+
+        loadTransactions();
     }
 
-    @Override
-    protected void onStart()
-    {
-        super.onStart();
+    private void loadTransactions() {
 
-        String currentEmail = authService.getCurrentUserEmail();
-        if (currentEmail == null || currentEmail.isEmpty())
-        {
-            Toast.makeText(this, "Please log in again.", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
+        RetrofitClient.getInstanceWithAuth(this)
+                .create(BankApiService.class)
+                .getTransactions(30)
+                .enqueue(new Callback<TransactionHistoryResponse>() {
+
+                    @Override
+                    public void onResponse(Call<TransactionHistoryResponse> call,
+                                           Response<TransactionHistoryResponse> response) {
+
+                        if (response.isSuccessful() && response.body() != null) {
+
+                            allTransactions = response.body().getStatement();
+                            if (allTransactions == null)
+                                allTransactions = new ArrayList<>();
+
+                            separateTransactions();
+
+                        } else {
+                            Toast.makeText(TransactionListActivity.this,
+                                    "Failed to load transactions",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<TransactionHistoryResponse> call, Throwable t) {
+                        Toast.makeText(TransactionListActivity.this,
+                                "Network error: " + t.getMessage(),
+                                Toast.LENGTH_SHORT).show();
+                    }
+                });
+    }
+
+    private void separateTransactions() {
+
+        List<Transaction> scheduled = new ArrayList<>();
+        List<Transaction> completed = new ArrayList<>();
+
+        for (Transaction t : allTransactions) {
+
+            String type = t.getType();
+
+            if (type == null) {
+                completed.add(t);
+                continue;
+            }
+
+            if (type.equalsIgnoreCase("DEPOSIT") ||
+                    type.equalsIgnoreCase("WITHDRAWAL")) {
+
+                completed.add(t);
+            }
+            else {
+                scheduled.add(t);
+            }
         }
 
-        dbService.listenUserTransactions(currentEmail, new DatabaseService.TransactionListCallback() {
-            @Override
-            public void onTransactionsLoaded(List<Transaction> transactions)
-            {
-                scheduledList.clear();
-                completedList.clear();
+        scheduleAdapter.updateTransactions(scheduled);
+        completedAdapter.updateTransactions(completed);
 
-                for (Transaction t : transactions)
-                {
-                    if ("Scheduled".equalsIgnoreCase(t.getStatus()))
-                    {
-                        scheduledList.add(t);
-                    }
-                    else
-                    {
-                        completedList.add(t);
-                    }
-                }
-
-                scheduledAdapter.notifyDataSetChanged();
-                completedAdapter.notifyDataSetChanged();
-
-                if (transactions.isEmpty())
-                {
-                    Toast.makeText(TransactionListActivity.this, "No transactions yet.", Toast.LENGTH_SHORT).show();
-                }
-            }
-
-            @Override
-            public void onError(String error)
-            {
-                Toast.makeText(TransactionListActivity.this, "Error loading transactions: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
+        tvSchedule.setText("Scheduled Transactions: " + scheduled.size());
+        tvCompletedLabel.setText("Completed Transactions (" + completed.size() + ")");
     }
 }

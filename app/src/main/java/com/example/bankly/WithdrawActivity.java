@@ -7,18 +7,18 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.bankly.Models.User;
-import com.example.bankly.Services.AuthService;
-import com.example.bankly.Services.DatabaseService;
+import com.example.bankly.requests.WithdrawRequest;
+import com.example.bankly.responses.ApiErrorResponse;
+import com.google.gson.Gson;
+
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class WithdrawActivity extends AppCompatActivity {
 
     private EditText etAmount;
     private Button btnWithdraw;
-
-    private AuthService authService;
-    private DatabaseService databaseService;
-    private User currentUser;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,80 +28,77 @@ public class WithdrawActivity extends AppCompatActivity {
         etAmount = findViewById(R.id.et_amount);
         btnWithdraw = findViewById(R.id.btn_withdraw);
 
-        authService = new AuthService();
-        databaseService = new DatabaseService();
+        btnWithdraw.setOnClickListener(v -> {
+            String amountStr = etAmount.getText().toString().trim();
 
-        loadCurrentUser();
-
-        btnWithdraw.setOnClickListener(v -> withdrawAmount());
-    }
-
-    private void loadCurrentUser() {
-        String uid = authService.getCurrentUserId();
-        if (uid != null) {
-            databaseService.getUser(uid, new DatabaseService.UserCallback() {
-                @Override
-                public void onUserLoaded(User user) {
-                    currentUser = user;
-                }
-
-                @Override
-                public void onUserNotFound() {
-                    Toast.makeText(WithdrawActivity.this, "User not found", Toast.LENGTH_SHORT).show();
-                    finish();
-                }
-
-                @Override
-                public void onError(String error) {
-                    Toast.makeText(WithdrawActivity.this, "Error loading user: " + error, Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
-    }
-
-    private void withdrawAmount() {
-        if (currentUser == null) {
-            Toast.makeText(this, "User data not loaded", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        String amountStr = etAmount.getText().toString().trim();
-        if (amountStr.isEmpty()) {
-            Toast.makeText(this, "Enter amount to withdraw", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        double amount;
-        try {
-            amount = Double.parseDouble(amountStr);
-        } catch (NumberFormatException e) {
-            Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (amount <= 0) {
-            Toast.makeText(this, "Amount must be greater than zero", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (amount > currentUser.getBalance()) {
-            Toast.makeText(this, "Insufficient balance", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        double newBalance = currentUser.getBalance() - amount;
-
-        databaseService.updateUserBalance(currentUser.getUid(), newBalance, new DatabaseService.DatabaseCallback() {
-            @Override
-            public void onSuccess(String message) {
-                Toast.makeText(WithdrawActivity.this, "Withdrawal successful", Toast.LENGTH_SHORT).show();
-                finish();
+            if (amountStr.isEmpty()) {
+                etAmount.setError("Amount is required");
+                etAmount.requestFocus();
+                return;
             }
 
-            @Override
-            public void onFailure(String error) {
-                Toast.makeText(WithdrawActivity.this, "Error updating balance: " + error, Toast.LENGTH_SHORT).show();
+            double amount;
+            try {
+                amount = Double.parseDouble(amountStr);
+            } catch (NumberFormatException e) {
+                etAmount.setError("Enter a valid number");
+                etAmount.requestFocus();
+                return;
             }
+
+            if (amount <= 0) {
+                etAmount.setError("Amount must be greater than 0");
+                etAmount.requestFocus();
+                return;
+            }
+
+            performWithdraw(amount);
         });
+    }
+
+    private void performWithdraw(double amount) {
+
+        WithdrawRequest request = new WithdrawRequest(amount);
+
+        RetrofitClient.getInstanceWithAuth(this)
+                .create(BankApiService.class)
+                .withdraw(request)
+                .enqueue(new Callback<ApiErrorResponse>() {
+                    @Override
+                    public void onResponse(Call<ApiErrorResponse> call, Response<ApiErrorResponse> response) {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(WithdrawActivity.this,
+                                    "Withdrawal successful!", Toast.LENGTH_SHORT).show();
+                            finish();
+                        } else {
+                            handleError(response);
+                        }
+                    }
+
+                    @Override
+                    public void onFailure(Call<ApiErrorResponse> call, Throwable t) {
+                        Toast.makeText(WithdrawActivity.this,
+                                "Network error: " + t.getMessage(),
+                                Toast.LENGTH_LONG).show();
+                    }
+                });
+    }
+
+    private void handleError(Response<ApiErrorResponse> response) {
+        try {
+            Gson gson = new Gson();
+            ApiErrorResponse errorResponse = gson.fromJson(
+                    response.errorBody().charStream(),
+                    ApiErrorResponse.class
+            );
+
+            String errorMsg = (errorResponse != null && errorResponse.getError() != null)
+                    ? errorResponse.getError()
+                    : "Withdrawal failed";
+
+            Toast.makeText(WithdrawActivity.this, errorMsg, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(WithdrawActivity.this, "Withdrawal failed!", Toast.LENGTH_LONG).show();
+        }
     }
 }

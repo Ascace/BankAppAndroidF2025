@@ -4,28 +4,25 @@ import android.os.Bundle;
 import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 
-import com.example.bankly.Models.Transaction;
-import com.example.bankly.Models.User;
-import com.example.bankly.Services.AuthService;
-import com.example.bankly.Services.DatabaseService;
+import com.example.bankly.requests.TransferRequest;
+import com.example.bankly.responses.ApiErrorResponse;
+import com.google.gson.Gson;
 
-import java.util.Calendar;
+import retrofit2.Call;
+import retrofit2.Callback;
+import retrofit2.Response;
 
 public class CreateTransactionActivity extends AppCompatActivity {
 
     private EditText etEmail, etAmount, etMessage;
-    private Button btn_send_money;
-    private ImageView ivBack;
     private CalendarView calendarView;
-    private long selectedDateMillis = System.currentTimeMillis();
+    private Button btnSendMoney;
 
-    private AuthService authService;
-    private DatabaseService dbService;
+    private long selectedDateTimestamp;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,120 +32,104 @@ public class CreateTransactionActivity extends AppCompatActivity {
         etEmail = findViewById(R.id.etEmail);
         etAmount = findViewById(R.id.et_amount);
         etMessage = findViewById(R.id.et_message);
-        btn_send_money = findViewById(R.id.btn_send_money);
-        ivBack = findViewById(R.id.iv_back);
         calendarView = findViewById(R.id.calendarView);
+        btnSendMoney = findViewById(R.id.btn_send_money);
 
-        authService = new AuthService();
-        dbService = new DatabaseService();
 
-        ivBack.setOnClickListener(v -> finish());
+        selectedDateTimestamp = calendarView.getDate();
 
         calendarView.setOnDateChangeListener((view, year, month, dayOfMonth) -> {
-            Calendar c = Calendar.getInstance();
-            c.set(year, month, dayOfMonth, 0, 0, 0);
-            selectedDateMillis = c.getTimeInMillis();
+            java.util.Calendar calendar = java.util.Calendar.getInstance();
+            calendar.set(year, month, dayOfMonth, 0, 0, 0);
+            selectedDateTimestamp = calendar.getTimeInMillis();
         });
 
-        btn_send_money.setOnClickListener(v -> createTransaction());
+        btnSendMoney.setOnClickListener(v -> validateAndSend());
     }
 
-    private void createTransaction() {
-        String recipientEmail = etEmail.getText().toString().trim();
-        String amountText = etAmount.getText().toString().trim();
+    private void validateAndSend() {
+        String recipient = etEmail.getText().toString().trim();
+        String amountStr = etAmount.getText().toString().trim();
         String message = etMessage.getText().toString().trim();
 
-        if (recipientEmail.isEmpty() || amountText.isEmpty()) {
-            Toast.makeText(this, "Email and amount are required", Toast.LENGTH_SHORT).show();
+        // Validate recipient email
+        if (recipient.isEmpty()) {
+            etEmail.setError("Recipient email required");
+            etEmail.requestFocus();
+            return;
+        }
+
+        // Validate amount
+        if (amountStr.isEmpty()) {
+            etAmount.setError("Amount required");
+            etAmount.requestFocus();
             return;
         }
 
         double amount;
         try {
-            amount = Double.parseDouble(amountText);
-            if (amount <= 0) {
-                Toast.makeText(this, "Amount must be greater than 0", Toast.LENGTH_SHORT).show();
-                return;
-            }
+            amount = Double.parseDouble(amountStr);
         } catch (NumberFormatException e) {
-            Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show();
+            etAmount.setError("Enter a valid number");
+            etAmount.requestFocus();
             return;
         }
 
-        String senderId = authService.getCurrentUserId();
-        String senderEmail = authService.getCurrentUserEmail();
-
-        if (senderId == null || senderEmail == null) {
-            Toast.makeText(this, "Not logged in", Toast.LENGTH_SHORT).show();
+        if (amount <= 0) {
+            etAmount.setError("Amount must be greater than 0");
+            etAmount.requestFocus();
             return;
         }
 
+        sendMoney(recipient, amount, message);
+    }
 
-        dbService.findUserByEmail(recipientEmail, new DatabaseService.UserCallback() {
-            @Override
-            public void onUserLoaded(User recipient) {
-                if (recipient.getEmail().equals(senderEmail)) {
-                    Toast.makeText(CreateTransactionActivity.this, "You cannot send money to yourself", Toast.LENGTH_SHORT).show();
-                    return;
-                }
+    private void sendMoney(String recipientEmail, double amount, String message) {
 
+        TransferRequest request = new TransferRequest(amount, message, recipientEmail);
 
-                dbService.getUser(senderId, new DatabaseService.UserCallback() {
+        RetrofitClient.getInstanceWithAuth(this)
+                .create(BankApiService.class)
+                .transfer(request)
+                .enqueue(new Callback<ApiErrorResponse>() {
                     @Override
-                    public void onUserLoaded(User sender) {
-                        if (sender.getBalance() < amount) {
-                            Toast.makeText(CreateTransactionActivity.this, "Insufficient balance", Toast.LENGTH_SHORT).show();
-                            return;
+                    public void onResponse(Call<ApiErrorResponse> call, Response<ApiErrorResponse> response) {
+                        if (response.isSuccessful()) {
+                            Toast.makeText(CreateTransactionActivity.this,
+                                    "Money sent successfully!",
+                                    Toast.LENGTH_SHORT).show();
+                            finish();
+                        } else {
+                            handleError(response);
                         }
-
-
-                        Transaction newTransaction = new Transaction(
-                                senderId,
-                                senderEmail,
-                                recipientEmail,
-                                amount,
-                                message.isEmpty() ? "No message" : message,
-                                "Scheduled",
-                                selectedDateMillis
-                        );
-
-                        dbService.createTransaction(newTransaction, new DatabaseService.DatabaseCallback() {
-                            @Override
-                            public void onSuccess(String msg) {
-                                Toast.makeText(CreateTransactionActivity.this, "Transaction scheduled!", Toast.LENGTH_SHORT).show();
-                                etEmail.setText("");
-                                etAmount.setText("");
-                                etMessage.setText("");
-                            }
-
-                            @Override
-                            public void onFailure(String error) {
-                                Toast.makeText(CreateTransactionActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
-                            }
-                        });
                     }
 
                     @Override
-                    public void onUserNotFound() {
-                        Toast.makeText(CreateTransactionActivity.this, "Sender not found", Toast.LENGTH_SHORT).show();
-                    }
-
-                    @Override
-                    public void onError(String error) {
-                        Toast.makeText(CreateTransactionActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
+                    public void onFailure(Call<ApiErrorResponse> call, Throwable t) {
+                        Toast.makeText(CreateTransactionActivity.this,
+                                "Network error: " + t.getMessage(),
+                                Toast.LENGTH_LONG).show();
                     }
                 });
-            }
+    }
 
-            @Override
-            public void onUserNotFound() {
-                Toast.makeText(CreateTransactionActivity.this, "Recipient not registered", Toast.LENGTH_SHORT).show();
-            }
+    private void handleError(Response<ApiErrorResponse> response) {
+        try {
+            Gson gson = new Gson();
+            ApiErrorResponse errorResponse = gson.fromJson(
+                    response.errorBody().charStream(),
+                    ApiErrorResponse.class
+            );
 
-            @Override
-            public void onError(String error) {
-                Toast.makeText(CreateTransactionActivity.this, "Error: " + error, Toast.LENGTH_SHORT).show();
-            }
-        });
+            String errorMsg = (errorResponse != null && errorResponse.getError() != null)
+                    ? errorResponse.getError()
+                    : "Transfer failed";
+
+            Toast.makeText(CreateTransactionActivity.this, errorMsg, Toast.LENGTH_LONG).show();
+        } catch (Exception e) {
+            Toast.makeText(CreateTransactionActivity.this,
+                    "Transfer failed!",
+                    Toast.LENGTH_LONG).show();
+        }
     }
 }
